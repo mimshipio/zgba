@@ -41,23 +41,11 @@ const REPEATREC = struct {
     repeat: u8 = 30, // Limit for successive repeats.
 };
 
-comptime {
-    asm (
-        \\.section .iwram, "ax", %progbits
-        \\.thumb
-        \\.thumb_func
-        \\.global poll
-        \\poll:
-        \\  @ thumb instructions here
-        \\  bx lr
-    );
-}
-
-pub fn poll() void {
+pub fn poll() linksection(".iwram") void {
     KeyControl.*.irq = true;
 
     key_previous = key_current;
-    key_current = ~@as(u16, @bitCast(KeyControl.*)) & @as(u16, @bitCast(KeyInput.*));
+    key_current = ~@as(u16, @bitCast(KeyInput.*)) & 0x03FF;
 
     const rpt: *REPEATREC = &key_repeat;
 
@@ -80,14 +68,14 @@ pub fn poll() void {
 }
 
 pub inline fn key_transit(key: u32) u32 {
-    return ( key_current ^ key_previous) & key;
+    return ( key_current ^ key_previous ) & key;
 }
 pub inline fn key_hit(key: u32) u32 {
-    return ( key_current&~ key_previous) & key;
+    return ( key_current & ~key_previous ) & key;
 }
 pub inline fn key_released(key: u32) u32 {
-    return ( ~key_current & key_previous) & key;
+    return ( ~key_current & key_previous ) & key;
 }
 pub inline fn key_held(key: u32) u32 {
-    return ( key_current & key_previous) & key;
+    return ( key_current & key_previous ) & key;
 }

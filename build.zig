@@ -8,7 +8,7 @@ pub fn build(b: *std.Build) void {
     //     .cpu_model = .{ .explicit = &std.Target.arm.cpu.arm7tdmi },
     // });
     const target_arm = b.resolveTargetQuery(.{
-        .cpu_arch = .arm,
+        .cpu_arch = .thumb,
         .os_tag = .freestanding,
         .abi = .eabi,
         .cpu_model = .{ .explicit = &std.Target.arm.cpu.arm7tdmi },

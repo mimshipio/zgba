@@ -42,7 +42,7 @@ const BGCNT = packed struct(u16) {
     palette_type: u1 = 0,
     char_tmap:    u5 = 0,
     screen_over:  bool = false,
-    tmap_size:    u2 = false,
+    tmap_size:    u2 = 0,
 };
 pub const BackgroundControl0: *volatile BGCNT = @as(*volatile BGCNT, @ptrFromInt(0x04000008));
 pub const BackgroundControl1: *volatile BGCNT = @as(*volatile BGCNT, @ptrFromInt(0x0400000A));

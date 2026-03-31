@@ -10,12 +10,10 @@ const sys = gba.sys;
 
 const Rgb = tonc.Rgb;
 
-pub export fn main() callconv(.{ .arm_aapcs = .{} }) noreturn {
+pub export fn main() linksection(".iwram") noreturn {
     display.DisplayControl.* = .{ .mode = 4, .bg2 = true };
 
-    const IRQ_HANDLER: *volatile usize = @as(*volatile usize, @ptrFromInt(0x03007FFC));
-    IRQ_HANDLER.* = @intFromPtr(&sys.isr);
-
+    gba.sys.dispatchIrq();
     display.DisplayStat.*.vblank_irq = true;
 
     sys.InterruptEnable.* = .{ .vblank_irq = true, .key_irq = true };
@@ -30,15 +28,16 @@ pub export fn main() callconv(.{ .arm_aapcs = .{} }) noreturn {
     const picImgLen = 38400;
     const picPalLen = 512;
 
-    tonc.cpuFastSet(pic_img_data, sys.Vram, (picImgLen / @sizeOf(u32)));
-    tonc.cpuFastSet(pic_pal_data, pal_bg_mem, (picPalLen / @sizeOf(u16)));
+    gba.sys.bios.fastMemCpy(pic_img_data, sys.Vram, (picImgLen / @sizeOf(u32)));
+    gba.sys.bios.fastMemCpy(pic_pal_data, pal_bg_mem, (picPalLen / @sizeOf(u16)));
 
     var frame: u32 = 0;
     var col: tonc.Rgb = .{};
 
     const CLR_RED: tonc.Rgb = .{.r = 31};
     const CLR_YELLOW: tonc.Rgb = .{.r = 31, .g = 31};
-    const CLR_LIME: tonc.Rgb = .{.g = 31, .b = 31};
+    const CLR_LIME: tonc.Rgb = .{.g = 31, .b = 15};
+    const CLR_BLUE: tonc.Rgb = .{.b = 31};
 
     while (true) {
         sys.bios.vblankIntrWait();
@@ -49,14 +48,14 @@ pub export fn main() callconv(.{ .arm_aapcs = .{} }) noreturn {
         for (0..10) |key| {
             const btn: u16 = @as(u16, 1) << @intCast(key);
 
-            if(input.key_hit(btn) != 0) {
+            if (input.key_hit(btn) != 0) {
                 col = CLR_RED;
-            } else if(input.key_released(btn) != 0) {
+            } else if (input.key_released(btn) != 0) {
                 col = CLR_YELLOW;
-            } else if(input.key_held(btn) != 0) {
+            } else if (input.key_held(btn) != 0) {
                 col = CLR_LIME;
             } else {
-                col = CLR_RED;
+                col = CLR_BLUE;
             }
             pal_bg_mem[5+key] = @as(u16, @bitCast(col));
         }
