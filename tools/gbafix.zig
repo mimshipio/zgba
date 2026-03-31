@@ -53,6 +53,8 @@ pub fn main() !void {
 
     try file.seekTo(0);
     try file.writeAll(std.mem.asBytes(&header));
+
+    std.debug.print("ROM Fixed!\n", .{});
 }
 
 fn calculateComplement(header: Header) u8 {

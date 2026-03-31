@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const display = @import("display.zig");
+
 pub const BIOS_IRQ_FLAGS = @as(*volatile u16, @ptrFromInt(0x03FFFFF8));
 
 pub export fn isr() callconv(.{ .arm_aapcs = .{} }) void {
@@ -7,43 +9,6 @@ pub export fn isr() callconv(.{ .arm_aapcs = .{} }) void {
     BIOS_IRQ_FLAGS.* |= @bitCast(triggered);    // tell BIOS
     InterruptFlags.* = @bitCast(triggered); // acknowledge hardware
 }
-
-
-const DISPCNT = packed struct(u16) {
-    mode:          u3  = 0,
-    gbc_mode:      u1  = 0,
-    page_select:   u1  = 0,
-    hblank_oam:    u1  = 0,
-    obj_id:        u1  = 0,
-    force_blank:   u1  = 0,
-    bg0:           bool = false,
-    bg1:           bool = false,
-    bg2:           bool = false,
-    bg3:           bool = false,
-    obj:           bool = false,
-    win0:          bool = false,
-    win1:          bool = false,
-    win_obj:       bool = false,
-};
-pub const DisplayControl: *volatile DISPCNT = @as(*volatile DISPCNT, @ptrFromInt(0x04000000));
-
-const DISPSTAT = packed struct(u16) {
-    vblank_status:   u1 = 0,
-    hblank_status:   u1 = 0,
-    vcount:          u1 = 0,
-    vblank_irq:      bool = false,
-    hblank_irq:      bool = false,
-    vcount_irq:      bool = false,
-    padding:         u2 = 0,
-    vcount_irq_line: u8 = 0,
-};
-pub const DisplayStat: *volatile DISPSTAT = @as(*volatile DISPSTAT, @ptrFromInt(0x04000004));
-
-const VCOUNT = packed struct(u16) {
-    vcount:    u8 = 0,
-    read_only: u8 = 0,
-};
-pub const VCount: *volatile VCOUNT = @as(*volatile VCOUNT, @ptrFromInt(0x04000006));
 
 const IRQ = packed struct(u16) {
     vblank_irq:     bool = false,
@@ -71,11 +36,11 @@ const IME = packed struct(u32) {
 };
 pub const InterruptMaster = @as(*volatile IME, @ptrFromInt(0x04000208));
 
-const VRAM = [0x00009600]u16;
-pub const Vram: *volatile VRAM = @as(*volatile VRAM, @ptrFromInt(0x06000000));
+pub const Vram: [*]volatile u16 = @ptrFromInt(0x06000000);
 
 pub inline fn call(comptime number: u8) void {
-    asm volatile ("swi #" ++ std.fmt.comptimePrint("0x{X}0000", .{number})
+    std.fmt.comptimePrint("0x{X}", .{number});
+    asm volatile (std.fmt.comptimePrint("swi 0x{X}0000", .{number})
         :::.{ .r0 = true, .r1 = true, .r2 = true, .r3 = true }
     );
 }
@@ -88,18 +53,19 @@ pub const bios = struct {
         call(0x02);
     }
     pub inline fn vblankIntrWait() void {
-        call(0x05);
+        // call(0x05);
+        asm volatile ("swi 0x050000" ::: .{ .r0 = true, .r1 = true, .r2 = true, .r3 = true} );
     }
-    pub inline fn div(numerator: i32, denominator: i32) struct { quot: i32, rem: i32 } {
-        var q: i32 = numerator;
-        var r: i32 = denominator;
-        asm volatile ("swi #0x060000"
-            : [q] "={r0}" (q),
-              [r] "={r1}" (r),
-            : [n] "{r0}" (q),
-              [d] "{r1}" (r),
-            : .{ .r3 = true }
-        );
-        return .{ .quot = q, .rem = r };
-    }
+    // pub inline fn div(numerator: i32, denominator: i32) struct { quot: i32, rem: i32 } {
+    //     var q: i32 = numerator;
+    //     var r: i32 = denominator;
+    //     asm volatile ("swi #0x06"
+    //         : [q] "={r0}" (q),
+    //           [r] "={r1}" (r),
+    //         : [n] "{r0}" (q),
+    //           [d] "{r1}" (r),
+    //         : .{ .r3 = true }
+    //     );
+    //     return .{ .quot = q, .rem = r };
+    // }
 };
