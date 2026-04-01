@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const gba = @import("gba");
+const arm = @import("arm");
 
 const init = gba.init;
 const display = gba.display;
@@ -9,11 +10,14 @@ const sys = gba.sys;
 
 export const header linksection(".gba_header") = init.Header{};
 
+const dst_pitch: isize = 240;
+const i_dst_pitch: usize = 240;
+
 pub const Rgb = packed struct(u16) {
     r: u5 = 0,
     g: u5 = 0,
     b: u5 = 0,
-    _: u1 = 0,
+    paddng: u1 = 0,
 };
 
 const Point = packed struct(u16) {
@@ -21,7 +25,7 @@ const Point = packed struct(u16) {
     y: u8 = 0,
 };
 
-const Rect = packed struct(u32) {
+pub const Rect = packed struct(u32) {
     left:   u8 = 0,
     right:  u8 = 0,
     top:    u8 = 0,
@@ -39,23 +43,25 @@ pub inline fn m3Plot(pos: Point, color: Rgb) void {
     sys.Vram[@as(u16, pos.y) * 240 + pos.x] = @bitCast(color);
 }
 
-pub fn m3Line(line: Line, color: Rgb) void {
-    bmp16Line(line, color);
+pub inline fn m3Line(line: Line, color: Rgb) void {
+    bmp16Line(line, @bitCast(color));
 }
 
 pub inline fn m3Rect(rect: Rect, color: Rgb) void {
-    bmp16Rect(rect, color);
+    bmp16Rect(rect, @bitCast(color));
 }
 
 pub inline fn m3Frame(rect: Rect, color: Rgb) void {
-    bmp16Frame(rect, color);
+    bmp16Frame(rect, @bitCast(color));
 
 }
 
-fn bmp16Line(line: Line, color: Rgb) void {
-    const clr: u16 = @bitCast(color);
-    const dst_pitch: isize = 240;
+pub inline fn m3Fill(color: Rgb) void {
+    arm.bmp32Fill(@bitCast(color));
+}
 
+
+fn bmp16Line(line: Line, color: u16) void {
     var dx: isize = undefined;
     var dy: isize = undefined;
     var x_step: isize = undefined;
@@ -71,19 +77,19 @@ fn bmp16Line(line: Line, color: Rgb) void {
     if (dy == 0) {
         var i: isize = 0;
         while (i <= dx) : (i += 1) {
-            sys.Vram[@intCast(start + i * x_step)] = clr;
+            sys.Vram[@intCast(start + i * x_step)] = color;
 
         }
     } else if (dx == 0) {
         var i: isize = 0;
         while (i <= dy) : (i += 1) {
-            sys.Vram[@intCast(start + i * y_step)] = clr;
+            sys.Vram[@intCast(start + i * y_step)] = color;
         }
     } else if (dx >= dy) {
         var dd: isize = 2 * dy - dx;
         var i: isize = 0;
         while (i <= dx) : (i += 1) {
-            sys.Vram[@intCast(start)] = clr;
+            sys.Vram[@intCast(start)] = color;
             if (dd >= 0) { dd -= 2 * dx; start += y_step; }
             dd += 2 * dy;
             start += x_step;
@@ -92,7 +98,7 @@ fn bmp16Line(line: Line, color: Rgb) void {
         var dd: isize = 2 * dx - dy;
         var i: isize = 0;
         while (i <= dy) : (i += 1) {
-            sys.Vram[@intCast(start)] = clr;
+            sys.Vram[@intCast(start)] = color;
             if (dd >= 0) { dd -= 2 * dy; start += x_step; }
             dd += 2 * dx;
             start += y_step;
@@ -100,24 +106,21 @@ fn bmp16Line(line: Line, color: Rgb) void {
     }
 }
 
-fn bmp16Rect(rect: Rect, color: Rgb) void {
-    const clr: u16 = @bitCast(color);
-    const dst_pitch: usize = 240;
+fn bmp16Rect(rect: Rect, color: u16) void {
+    const width = rect.right - rect.left;
+    const height = rect.bottom - rect.top;
 
-    const width: u32 = rect.right - rect.left;
-    const height: u32 = rect.bottom - rect.top;
-
-    const start: usize = rect.top * dst_pitch + rect.left;
-
-    for (0..height) |iy| {
-        for (0..width) |ix| {
-            sys.Vram[@intCast(start + iy * dst_pitch + ix)] = clr;
+    var y: u32 = 0;
+    while (y < height) : (y += 1) {
+        const row_start = (rect.top + y) * 240 + rect.left;
+        var x: u32 = 0;
+        while (x < width) : (x += 1) {
+            sys.Vram[row_start + x] = color;
         }
     }
-
 }
 
-fn bmp16Frame(rect: Rect, color: Rgb) void {
+fn bmp16Frame(rect: Rect, color: u16) void {
     const new_rect: Rect = .{
         .left   = rect.left,
         .top    = rect.top,

@@ -264,12 +264,14 @@ SECTIONS {
 	} > IWRAM
 	__ov3_load = LOADADDR(.iwram_ov3);
 
+	__overlay_end = MAX(__ov0_end, MAX(__ov1_end, MAX(__ov2_end, __ov3_end)));
+
     /*
      * .bss — uninitialised globals/statics.
      *
      * The image for .bss is NOT stored in ROM.  _start zeroes this region.
      */
-    .bss (NOLOAD) : {
+    .bss __overlay_end+(__overlay_end%64) (NOLOAD) : {
         __bss_start = .;
         *(.bss*)
         *(COMMON)

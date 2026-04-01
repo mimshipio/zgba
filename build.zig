@@ -1,13 +1,13 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
-    // const target_thumb = b.resolveTargetQuery(.{
-    //     .cpu_arch = .thumb,
-    //     .os_tag = .freestanding,
-    //     .abi = .eabi,
-    //     .cpu_model = .{ .explicit = &std.Target.arm.cpu.arm7tdmi },
-    // });
     const target_arm = b.resolveTargetQuery(.{
+        .cpu_arch = .arm,
+        .os_tag = .freestanding,
+        .abi = .eabi,
+        .cpu_model = .{ .explicit = &std.Target.arm.cpu.arm7tdmi },
+    });
+    const target_thumb = b.resolveTargetQuery(.{
         .cpu_arch = .thumb,
         .os_tag = .freestanding,
         .abi = .eabi,
@@ -18,16 +18,23 @@ pub fn build(b: *std.Build) void {
 
     const gba_mod = b.createModule(.{
         .root_source_file = b.path("src/root.zig"),
+        .target = target_thumb,
+        .optimize = optimize,
+    });
+
+    const tonc_arm_mod = b.createModule(.{
+        .root_source_file = b.path("tonc/arm/root.zig"),
         .target = target_arm,
         .optimize = optimize,
     });
 
     const tonc_mod = b.createModule(.{
         .root_source_file = b.path("tonc/root.zig"),
-        .target = target_arm,
+        .target = target_thumb,
         .optimize = optimize,
         .imports = &.{
             .{ .name = "gba", .module = gba_mod },
+            .{ .name = "arm", .module = tonc_arm_mod },
         },
     });
 
@@ -35,7 +42,7 @@ pub fn build(b: *std.Build) void {
         // .root_source_file = b.path("tonc/second/main.zig"),
         // .root_source_file = b.path("tonc/key_demo/main.zig"),
         .root_source_file = b.path("tonc/m3_demo/main.zig"),
-        .target = target_arm,
+        .target = target_thumb,
         .optimize = optimize,
         .imports = &.{
             .{ .name = "tonc", .module = tonc_mod },
@@ -49,6 +56,9 @@ pub fn build(b: *std.Build) void {
     });
 
     elf.setLinkerScript(b.path("gba.ld"));
+
+    const installAssembly = b.addInstallBinFile(elf.getEmittedAsm(), "gba.s");
+    b.getInstallStep().dependOn(&installAssembly.step);
 
     const bin = elf.addObjCopy(.{ .format = .bin });
     const gba_file = bin.getOutput();

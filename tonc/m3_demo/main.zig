@@ -10,18 +10,23 @@ const sys = gba.sys;
 
 const Rgb = tonc.Rgb;
 
-pub export fn main() callconv(.{ .arm_aapcs = .{} }) noreturn {
+const RED = Rgb{ .r =  31, .g = 0, .b =  0 };
+const BLUE = Rgb{ .r =  0, .g = 0, .b =  31 };
+const GREEN = Rgb{ .r =  0, .g = 30, .b =  0 };
+
+pub export fn main() linksection(".text") noreturn {
     display.DisplayControl.* = .{ .mode = 3, .bg2 = true };
 
-    tonc.m3Rect(
-        .{ .left = 12, .right = 108, .top = 8, .bottom = 72 },
-        .{ .r =  31, .g = 0, .b =  0 });
-    tonc.m3Rect(
-        .{ .left = 108, .right = 132, .top = 72, .bottom = 88 },
-        .{ .r =  0, .g = 31, .b =  0 });
-    tonc.m3Rect(
-        .{ .left = 132, .right = 228, .top = 88, .bottom = 152 },
-        .{ .r =  0, .g = 0, .b =  31 });
+    tonc.m3Fill(.{ .r = 12, .g = 12, .b = 12 });
+
+    const rec0 = tonc.Rect{ .left = 12, .right = 108, .top = 8, .bottom = 72 };
+    tonc.m3Rect( rec0, RED );
+
+    const rec1 = tonc.Rect{ .left = 108, .right = 132, .top = 72, .bottom = 88 };
+    tonc.m3Rect( rec1, GREEN );
+
+    const rec2 = tonc.Rect{ .left = 132, .right = 228, .top = 88, .bottom = 152 };
+    tonc.m3Rect( rec2, BLUE );
 
     tonc.m3Frame(
         .{ .left = 132, .right = 228, .top = 8, .bottom = 72 },
