@@ -68,6 +68,7 @@ SECTIONS {
     .gba_header : {
         KEEP(*(.gba_header))
     } > ROM
+	__header_size = SIZEOF(.gba_header);
 
     /*
      * .text.boot  — ARM-mode startup trampoline (_start).
@@ -271,11 +272,11 @@ SECTIONS {
      *
      * The image for .bss is NOT stored in ROM.  _start zeroes this region.
      */
-    .bss __overlay_end+(__overlay_end%64) (NOLOAD) : {
-        __bss_start = .;
+    .bss ALIGN(__overlay_end, 64) (NOLOAD) : {
+		__bss_start = .;
         *(.bss*)
         *(COMMON)
-        . = ALIGN(4);
+        . = ALIGN(64);
         __bss_end = .;
     } > IWRAM
 

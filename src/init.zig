@@ -1,3 +1,5 @@
+const std = @import("std");
+
 // init.zig — GBA startup and memory initialisation
 //
 // This file owns:

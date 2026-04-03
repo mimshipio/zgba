@@ -10,9 +10,8 @@ const sys = gba.sys;
 
 const Rgb = tonc.Rgb;
 
-pub export fn main() callconv(.{ .arm_aapcs = .{} }) noreturn {
+pub export fn main() noreturn {
     display.DisplayControl.* = .{ .mode = 3, .bg2 = true };
-
 
     while (true) {
         tonc.m3Plot(.{ .x = 136, .y = 80 }, .{ .r =  0, .g = 31, .b =  0 });

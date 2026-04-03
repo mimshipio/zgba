@@ -1,14 +1,12 @@
 const std = @import("std");
 
 const gba = @import("gba");
-const arm = @import("arm");
+const arm = @import("tonc_arm");
 
 const init = gba.init;
 const display = gba.display;
 const input = gba.input;
 const sys = gba.sys;
-
-export const header linksection(".gba_header") = init.Header{};
 
 const dst_pitch: isize = 240;
 const i_dst_pitch: usize = 240;
@@ -40,7 +38,7 @@ const Line = packed struct(u32) {
 };
 
 pub inline fn m3Plot(pos: Point, color: Rgb) void {
-    sys.Vram[@as(u16, pos.y) * 240 + pos.x] = @bitCast(color);
+    display.Vram16[pos.y][pos.x] = @bitCast(color);
 }
 
 pub inline fn m3Line(line: Line, color: Rgb) void {
@@ -77,19 +75,20 @@ fn bmp16Line(line: Line, color: u16) void {
     if (dy == 0) {
         var i: isize = 0;
         while (i <= dx) : (i += 1) {
-            sys.Vram[@intCast(start + i * x_step)] = color;
-
+            // display.Vram[@intCast(start + i * x_step)] = color;
+            display.Vram16[0][@intCast(start+i*x_step)] = color;
         }
     } else if (dx == 0) {
         var i: isize = 0;
         while (i <= dy) : (i += 1) {
-            sys.Vram[@intCast(start + i * y_step)] = color;
+            display.Vram[@intCast(start + i * y_step)] = color;
+            // display.Vram16[0][@intCast(start+i*y_step)] = color;
         }
     } else if (dx >= dy) {
         var dd: isize = 2 * dy - dx;
         var i: isize = 0;
         while (i <= dx) : (i += 1) {
-            sys.Vram[@intCast(start)] = color;
+            display.Vram[@intCast(start)] = color;
             if (dd >= 0) { dd -= 2 * dx; start += y_step; }
             dd += 2 * dy;
             start += x_step;
@@ -98,7 +97,7 @@ fn bmp16Line(line: Line, color: u16) void {
         var dd: isize = 2 * dx - dy;
         var i: isize = 0;
         while (i <= dy) : (i += 1) {
-            sys.Vram[@intCast(start)] = color;
+            display.Vram[@intCast(start)] = color;
             if (dd >= 0) { dd -= 2 * dy; start += x_step; }
             dd += 2 * dx;
             start += y_step;
@@ -110,12 +109,9 @@ fn bmp16Rect(rect: Rect, color: u16) void {
     const width = rect.right - rect.left;
     const height = rect.bottom - rect.top;
 
-    var y: u32 = 0;
-    while (y < height) : (y += 1) {
-        const row_start = (rect.top + y) * 240 + rect.left;
-        var x: u32 = 0;
-        while (x < width) : (x += 1) {
-            sys.Vram[row_start + x] = color;
+    for (0..height) |y| {
+        for (0..width) |x| {
+            display.Vram16[rect.top + y][rect.left + x] = color;
         }
     }
 }

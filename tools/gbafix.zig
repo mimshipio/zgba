@@ -45,11 +45,12 @@ pub fn main() !void {
     var header: Header = undefined;
     _ = try file.readAll(std.mem.asBytes(&header));
 
-    // Apply default fixes
     header.logo = NINTENDO_LOGO;
     header.fixed = 0x96;
 
     header.complement_check = calculateComplement(header);
+
+    std.debug.assert(@sizeOf(Header) == 192);
 
     try file.seekTo(0);
     try file.writeAll(std.mem.asBytes(&header));

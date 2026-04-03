@@ -34,7 +34,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .imports = &.{
             .{ .name = "gba", .module = gba_mod },
-            .{ .name = "arm", .module = tonc_arm_mod },
+            .{ .name = "tonc_arm", .module = tonc_arm_mod },
         },
     });
 
@@ -42,8 +42,11 @@ pub fn build(b: *std.Build) void {
         // .root_source_file = b.path("tonc/second/main.zig"),
         // .root_source_file = b.path("tonc/key_demo/main.zig"),
         .root_source_file = b.path("tonc/m3_demo/main.zig"),
+        // .root_source_file = b.path("tonc/bm_modes/main.zig"),
+        // .root_source_file = b.path("tonc/brin_demo/main.zig"),
         .target = target_thumb,
         .optimize = optimize,
+        .strip = false,
         .imports = &.{
             .{ .name = "tonc", .module = tonc_mod },
             .{ .name = "gba", .module = gba_mod },
@@ -57,12 +60,12 @@ pub fn build(b: *std.Build) void {
 
     elf.setLinkerScript(b.path("gba.ld"));
 
-    const installAssembly = b.addInstallBinFile(elf.getEmittedAsm(), "gba.s");
-    b.getInstallStep().dependOn(&installAssembly.step);
+    const install_assembly = b.addInstallBinFile(elf.getEmittedAsm(), "gba.s");
+    b.getInstallStep().dependOn(&install_assembly.step);
 
     const bin = elf.addObjCopy(.{ .format = .bin });
     const gba_file = bin.getOutput();
-    const install_bin = b.addInstallFile(gba_file, "my_game.bin");
+    const install_bin = b.addInstallBinFile(gba_file, "my_game");
 
     const fixer_tool = b.addExecutable(.{
         .name = "gbafix",
