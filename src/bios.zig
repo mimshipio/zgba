@@ -1,16 +1,19 @@
 const std = @import("std");
 
-pub export fn vBlankIntrWait() linksection(".iwram") void {
+pub fn softReset() void {
+    asm volatile ("swi 0x00"); // No clobbers because it resets the CPU
+}
+pub export fn vBlankIntrWait() linksection(".text") void {
     asm volatile ("swi 0x05"
-        ::: .{ .r0 = true, .r1 = true, .r2 = true, .r3 = true, .memory = true }
+        ::: .{ .r0 = true, .r1 = true, .r2 = true, .r3 = true }
     );
 }
-pub fn cpuFastSet(src: anytype, dest: anytype, control: u32) linksection(".text") void {
+pub fn cpuFastSet(src: anytype, dest: anytype) linksection(".text") void {
     asm volatile ("swi 0x0C"
         :
         : [src]     "{r0}" (src),
           [dest]    "{r1}" (dest),
-          [control] "{r2}" (control),
+          [control] "{r2}" (src.len / @sizeOf(u32)),
         : .{ .r0 = true, .r1 = true, .r2 = true, .r3 = true }
     );
 }

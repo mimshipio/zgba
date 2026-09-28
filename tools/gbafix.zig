@@ -28,34 +28,28 @@ const NINTENDO_LOGO = [156]u8{
     0xD6, 0x25, 0xE4, 0x8B, 0x38, 0x0A, 0xAC, 0x72, 0x21, 0xD4, 0xF8, 0x07,
 };
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    defer _ = gpa.deinit();
-
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+pub fn main(init: std.process.Init) !void {
+    var arena = init.arena;
+    const args = try init.minimal.args.toSlice(arena.allocator());
 
     if (args.len < 2) return error.NoFilenameProvided;
     const filename = args[1];
 
-    const file = try std.fs.cwd().openFile(filename, .{ .mode = .read_write });
-    defer file.close();
+    var file = try std.Io.Dir.cwd().openFile(init.io, filename, .{ .mode = .read_write });
+    defer file.close(init.io);
 
-    var header: Header = undefined;
-    _ = try file.readAll(std.mem.asBytes(&header));
-
+    var buffer: [@sizeOf(Header)]u8 = undefined;
+    var reader = file.reader(init.io, &buffer);
+    var header = try reader.interface.peekStruct(Header, .native);
     header.logo = NINTENDO_LOGO;
     header.fixed = 0x96;
-
     header.complement_check = calculateComplement(header);
 
     std.debug.assert(@sizeOf(Header) == 192);
 
-    try file.seekTo(0);
-    try file.writeAll(std.mem.asBytes(&header));
-
-    std.debug.print("ROM Fixed!\n", .{});
+    var writer = file.writer(init.io, &buffer);
+    try writer.interface.writeStruct(header, .native);
+    try writer.flush();
 }
 
 fn calculateComplement(header: Header) u8 {

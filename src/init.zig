@@ -1,3 +1,5 @@
+// AI generated
+
 const std = @import("std");
 
 // init.zig — GBA startup and memory initialisation
@@ -40,19 +42,10 @@ pub const Header = extern struct {
 // A symbol like __bss_start is not a variable — it IS an address.  The linker
 // places a label at that location; taking &__bss_start gives you that address.
 //
-// Correct Zig pattern:
-//   extern const __foo: u8;           // declare as extern const u8
-//   const addr = @intFromPtr(&__foo); // take the address of the symbol
-//
 // Why u8 and not u32?
 //   The type is irrelevant — we never read the value at the symbol, only its
 //   address.  u8 is conventional because it makes the pointer arithmetic
 //   natural: @as([*]u8, @ptrFromInt(...)) needs no scaling.
-//
-// Why const and not var?
-//   These are not writable memory locations.  Declaring them var would let
-//   Zig believe you can assign through them, which would corrupt code or
-//   metadata.
 //
 // Sections that live in IWRAM or EWRAM at runtime but are stored in ROM have
 // three symbols each:
@@ -159,8 +152,8 @@ pub const SpIrq           = @intFromPtr(&__sp_irq);
 // .ewram_data: has a ROM image; _start copies it to EWRAM at boot.
 //              Uncomment bigTable (or add your own) once you have an initialiser.
 
-pub var scratchBuffer: [65536]u8 linksection(".ewram_bss") = undefined;
-pub var bigTable: [1024]u16 linksection(".ewram_data") = [_]u16{0} ** 1024;
+pub var scratchBuffer: [65536]u8 linksection(".ewram_bss")  = undefined;
+pub var bigTable:      [1024]u16 linksection(".ewram_data") = @splat(0);
 
 comptime {
     // ── _start ────────────────────────────────────────────────────────────
@@ -369,6 +362,11 @@ comptime {
     );
 }
 
+const sys = @import("sys.zig");
+comptime {
+    _ = &sys.dispatchIrq;
+}
+
 // ── Overlay loading ────────────────────────────────────────────────────────
 //
 // IWRAM overlay banks are mutually exclusive code regions stored in ROM and
@@ -384,6 +382,7 @@ comptime {
 //
 // Do not call a function in a bank after loading a different bank.
 // Do not call loadOverlayN() while executing code inside that bank.
+
 pub fn loadOverlay0() void {
     const src = Ov0Load;
     const dst = Ov0Start;

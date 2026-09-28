@@ -7,6 +7,7 @@ const init = gba.init;
 const display = gba.display;
 const input = gba.input;
 const sys = gba.sys;
+const bios = gba.bios;
 
 const Rgb = tonc.Rgb;
 
@@ -55,6 +56,8 @@ pub export fn main() noreturn {
             .{ .r  = 0,            .g  = @intCast(jj), .b = @intCast(jj) });
     }
 
-    while (true) { }
+    while (true) {
+        bios.vBlankIntrWait();
+    }
 }
 

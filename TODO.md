@@ -1,0 +1,9 @@
+- [ ] write tests for everything
+    - [ ] how...?
+- [ ] write a panic and stack trace thing
+    - [ ] how...?
+- [ ] write a thin abstraction layer so that things can be updated cleanly
+    - [ ] maybe based on how drawcalls work in vulkan?
+- [ ] programmatic art & art manipulation
+    - [ ] an interface for addressing OAM
+- [ ] key handler interface

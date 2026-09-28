@@ -1,10 +1,10 @@
 const DISPCNT = packed struct(u16) {
     mode:          u3  = 0,
-    gbc_mode:      u1  = 0, // read-only
-    page_select:   u1  = 0,
-    hblank_oam:    u1  = 0,
-    obj_id:        u1  = 0,
-    force_blank:   u1  = 0,
+    gbc_mode:     bool = false, // read-only
+    page_select:  bool = false,
+    hblank_oam:   bool = false,
+    obj_id:       bool = false,
+    force_blank:  bool = false,
     bg0:          bool = false,
     bg1:          bool = false,
     bg2:          bool = false,
@@ -41,9 +41,9 @@ const BGCNT = packed struct(u16) {
     mosaic:       bool = false,
     palette_type:
         enum(u1) {
-            c16_bit,
+            c16,
             c256,
-        } = .c16_bit,
+        } = .c16,
     screen_block:   u5 = 0,
     affine_wrap:  bool = false,
     bg_size:        u2 = 0,
@@ -53,20 +53,34 @@ pub const BackgroundControl1: *volatile BGCNT = @ptrFromInt(0x0400000A);
 pub const BackgroundControl2: *volatile BGCNT = @ptrFromInt(0x0400000C);
 pub const BackgroundControl3: *volatile BGCNT = @ptrFromInt(0x0400000E);
 
-pub var BG0HOFS: *volatile u16 = @ptrFromInt(0x04000010);
-pub var BG0VOFS: *volatile u16 = @ptrFromInt(0x04000012);
-pub var BG1HOFS: *volatile u16 = @ptrFromInt(0x04000014);
-pub var BG1VOFS: *volatile u16 = @ptrFromInt(0x04000016);
+const BGOFFSET = packed struct(u16) {
+    offset:   u9 = 0,
+    _padding: u7 = 0,
+};
+pub const BGOFFSET_HV = packed struct(u32) {
+    horizontal: BGOFFSET = .{},
+    vertical:   BGOFFSET = .{},
+};
+pub const BackgroundOffset0:  *volatile BGOFFSET_HV = @ptrFromInt(0x04000010);
+pub const BackgroundOffset1:  *volatile BGOFFSET_HV = @ptrFromInt(0x04000014);
+pub const BackgroundOffset2:  *volatile BGOFFSET_HV = @ptrFromInt(0x04000018);
+pub const BackgroundOffset3:  *volatile BGOFFSET_HV = @ptrFromInt(0x0400001c);
 
+// pub const PaletteMem = extern struct {
+//     pub const bg:  *volatile [0x100]u16 = @ptrFromInt(0x05000000);
+//     pub const obj: *volatile [0x100]u16 = @ptrFromInt(0x05000200);
+// };
 pub const PaletteMem: [*]volatile u16 = @ptrFromInt(0x05000000);
-pub const SpriteMem: [*]volatile u16 = @ptrFromInt(0x05002000);
+pub const SpriteMem:  [*]volatile u16  = @ptrFromInt(0x05000200);
 
-pub const Vram: [*]volatile u16 = @ptrFromInt(0x06000000);
-pub const Vram16: *volatile [160][240]u16 = @ptrFromInt(0x06000000);
-pub const Vram32: *volatile [80][120]u32 = @ptrFromInt(0x06000000);
-pub const TileMem: *volatile [6][512][32]u8 = @ptrFromInt(0x06000000);
-const ScreenBlock = [32][32]u16;
-pub const ScreenBlockMem: *volatile [32]ScreenBlock = @ptrFromInt(0x06000000);
+pub const VideoMemoryType = extern union {
+    raw:       [0xc000]u16,
+    @"16-bit": [160][240]u16,
+    @"32-bit": [160][120]u32,
+    @"tile":   [6][512][32]u8,
+    @"block":  [32][32][32]u16,
+};
+pub const VideoMemory: *volatile VideoMemoryType = @ptrFromInt(0x6000000);
 
 const Attr0 = packed struct(u16) {
     /// Starts at top left if affine is off, or centre if affine is on

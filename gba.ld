@@ -1,13 +1,16 @@
+/* AI generated */
+
 /*
- * gba.ld — GBA linker script for Zig (thumb-freestanding-eabi, arm7tdmi)
+ * This *might* work with other compilers, but has not been tested.
  *
  * Memory layout:
  *   ROM    0x08000000  32 MB   16-bit bus  cartridge code + data
  *   IWRAM  0x03007F00  32 KB   32-bit bus  fast RAM: stack, hot code, .data
  *   EWRAM  0x02000000 256 KB   16-bit bus  heap, large buffers, thumb code
  *
- * The first 0xC0 (192) bytes of ROM are the GBA header.  Your _start ARM
- * trampoline lives immediately after it.  The boot ROM jumps to 0x08000000,
+ * The first 0xC0 (192) bytes of ROM are the GBA header.
+ * _start (see src/init.zig) begins immediately after
+ * The boot ROM jumps to 0x08000000,
  * which must be a valid 32-bit ARM B instruction pointing at _start.
  */
 
@@ -53,17 +56,7 @@ SECTIONS {
      * .gba_header  (0x08000000 – 0x080000BF, 192 bytes)
      *
      * The GBA boot ROM validates this region before handing off execution.
-     * Your Zig source must export a section named ".gba_header" containing:
-     *   [0x00] 4 bytes  ARM B instruction  →  _start
-     *   [0x04] 156 bytes Nintendo logo bitmap  (exact copy required)
-     *   [0xA0] 12 bytes Game title  (ASCII, uppercase, null-padded)
-     *   [0xAC] 4 bytes  Game code
-     *   [0xB0] 2 bytes  Maker code
-     *   [0xB2] 1 byte   Fixed value 0x96
-     *   [0xB3] 7 bytes  Unit/device/reserved  (all 0x00)
-     *   [0xBC] 1 byte   Software version  0x00
-     *   [0xBD] 1 byte   Complement check  (computed by gbafix or comptime)
-     *   [0xBE] 2 bytes  Reserved  0x0000
+     * (see src/init.zig for details)
      */
     .gba_header : {
         KEEP(*(.gba_header))
@@ -71,13 +64,13 @@ SECTIONS {
 	__header_size = SIZEOF(.gba_header);
 
     /*
-     * .text.boot  — ARM-mode startup trampoline (_start).
+     * .text.boot  — ARM-mode startup trampoline (_start)
      *
      * Must be ARM (not Thumb) because the CPU boots in ARM state.
-     * Responsibilities:
-     *   1. Set SP = _stack_top
-     *   2. Zero .bss  (__bss_start .. __bss_end)
-     *   3. Copy .data from ROM (__data_load) to IWRAM (__data_start .. __data_end)
+     * What it does:
+     *   1. Set the stack pointer to point at _stack_top
+     *   2. Clear .bss  (i.e. from __bss_start .. __bss_end)
+     *   3. Copy .data from ROM (__data_load) to IWRAM (i.e. from __data_start .. __data_end)
      *   4. BX into Thumb main()
      */
 	.text.boot : {
@@ -100,9 +93,10 @@ SECTIONS {
 	 * function, the linker inserts a BX veneer automatically.
 	 *
 	 * NOTE: ARM instructions are 32-bit; on the GBA's 16-bit ROM bus each
-	 * fetch takes two cycles instead of one. Prefer Thumb unless you have a
-	 * specific reason. IWRAM (32-bit bus) does not have this penalty — put
-	 * ARM hot code in .iwram instead.
+	 * fetch takes two cycles instead of one. Prefer Thumb unless there's a
+	 * specific reason to use ARM.
+         * IWRAM (32-bit bus), in contrast, does not have this penalty — so ARM
+         * hot code goes in .iwram.
 	 */
 	.text.arm : {
 		__arm_code_start = .;
@@ -112,15 +106,15 @@ SECTIONS {
 	} > ROM
 
 	/*
-	 * .text — Thumb-mode code (default for all Zig functions).
+	 * .text — Thumb-mode code (default).
 	 *
-	 * In Zig, callconv(.{ .arm_aapcs = .{} }) is the default for freestanding targets.
+         * functions in this section should use the arm_aapcs calling convention.
+	 * In Zig, callconv(.{ .arm_aapcs = .{} }) is the default for freestanding targets,
 	 * and applies to both 32-bit ARM instructions and 16-bit Thumb instructions.
-	 * You do not need to annotate normal functions — they land here.
+	 * Calling convention annotations aren't necessary for functions in this section.
 	 * Only use linksection(".text.arm") when you deliberately need ARM state.
 	 *
-	 * __thumb_code_start marks the transition point. Your debugger or
-	 * disassembler can use this to know where to decode 16-bit Thumb.
+	 * __thumb_code_start marks the transition point to thumb instructions.
 	 */
 	.text : {
 		__thumb_code_start = .;
@@ -134,8 +128,8 @@ SECTIONS {
     /*
      * .data — initialised globals/statics.
      *
-     * LMA (load address) = end of .text in ROM  →  stored in the cartridge.
-     * VMA (virtual address) = IWRAM              →  where the CPU accesses it.
+     * LMA (load address) = end of .text in ROM →  stored in the cartridge.
+     * VMA (virtual address) = IWRAM            →  where the CPU accesses it.
      * _start copies the image from ROM to IWRAM at boot.
      */
 	.data : {
@@ -185,23 +179,10 @@ SECTIONS {
 	 * Only one bank occupies IWRAM at a time. Your Zig code DMAs a bank in
 	 * before calling any function inside it, and DMAs another in when done.
 	 *
-	 * Zig usage pattern:
+	 * Usage pattern:
 	 *
-	 *   // In your overlay module:
+         *   // TODO: unimplemented
 	 *   export fn audioMix() linksection(".iwram_ov0") void { ... }
-	 *
-	 *   // In your runtime (startup.zig or audio.zig):
-	 *   extern const __ov0_load:   u8;  // LMA: where the bank sits in ROM
-	 *   extern const __ov0_start:  u8;  // VMA: where it runs in IWRAM
-	 *   extern const __ov0_end:    u8;  // VMA: end
-	 *
-	 *   fn loadOverlay0() void {
-	 *       const src = @intFromPtr(&__ov0_load);
-	 *       const dst = @intFromPtr(&__ov0_start);
-	 *       const len = @intFromPtr(&__ov0_end) - dst;
-	 *       @memcpy(@as([*]u8, @ptrFromInt(dst))[0..len],
-	 *               @as([*]const u8, @ptrFromInt(src))[0..len]);
-	 *   }
 	 *
 	 * All banks share the same VMA range — they are NOCROSSREFS so the linker
 	 * errors if code in one bank calls code in another without a DMA in between.
@@ -212,8 +193,8 @@ SECTIONS {
 	/*
 	 * IWRAM overlay banks — LLD-compatible manual layout.
 	 *
-	 * GNU ld's OVERLAY directive is not supported by ld.lld (the linker Zig uses).
-	 * We replicate it manually.
+	 * GNU ld's OVERLAY directive is not supported by ld.lld
+	 * But it can be replicated manually.
 	 *
 	 * What OVERLAY did automatically that we now do explicitly:
 	 *   VMA: every bank starts at __overlay_base (they share the same address range
